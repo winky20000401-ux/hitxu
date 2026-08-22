@@ -42,7 +42,7 @@ export default function AdminLoginPage() {
       <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl p-8 shadow-2xl space-y-6">
         <div className="text-center space-y-2">
           <div className="text-3xl">🔐</div>
-          <h1 className="text-2xl font-black text-white">HitXu 管理員登入</h1>
+          <h1 className="text-2xl font-black text-white">GitGame 管理員登入</h1>
           <p className="text-xs text-slate-400">請輸入管理員憑證以存取控制台</p>
         </div>
 

@@ -24,7 +24,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <div className="space-y-6">
           <div className="flex items-center space-x-2">
             <span className="text-2xl">⚙️</span>
-            <span className="font-bold text-lg text-emerald-400">HitXu CMS</span>
+            <span className="font-bold text-lg text-emerald-400">GitGame CMS</span>
           </div>
 
           <nav className="space-y-2 text-sm font-medium">

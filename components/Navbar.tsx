@@ -7,7 +7,7 @@ export default function Navbar() {
         <div className="flex items-center space-x-8">
           <Link href="/" className="flex items-center space-x-2 text-2xl font-black tracking-wider text-emerald-400">
             <span>🎮</span>
-            <span className="bg-gradient-to-r from-emerald-400 to-teal-200 bg-clip-text text-transparent">HitXu</span>
+            <span className="bg-gradient-to-r from-emerald-400 to-teal-200 bg-clip-text text-transparent">GitGame</span>
           </Link>
           <nav className="hidden md:flex space-x-6 text-sm font-medium text-slate-300">
             <Link href="/" className="hover:text-emerald-400 transition-colors">Home</Link>

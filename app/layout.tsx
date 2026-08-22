@@ -3,7 +3,7 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 
 export const metadata = {
-  title: 'HitXu - Discover Great Games, News & Mini Games',
+  title: 'GitGame - Discover Great Games, News & Mini Games',
   description: 'Instant play online H5 mini games and latest game guides and news.',
 };
 

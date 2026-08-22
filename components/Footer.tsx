@@ -5,7 +5,7 @@ export default function Footer() {
     <footer className="bg-slate-900 border-t border-slate-800 text-slate-400 text-sm py-12 mt-20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-4 gap-8">
         <div>
-          <div className="text-xl font-black text-emerald-400 mb-3">HitXu</div>
+          <div className="text-xl font-black text-emerald-400 mb-3">GitGame</div>
           <p className="text-xs text-slate-500">Discover great games, read latest updates, and enjoy instant-play H5 games anytime.</p>
         </div>
         <div>
@@ -34,7 +34,7 @@ export default function Footer() {
         </div>
       </div>
       <div className="max-w-7xl mx-auto px-4 mt-8 pt-6 border-t border-slate-800/60 text-center text-xs text-slate-500">
-        © 2026 HitXu · Discover Great Games
+        © 2026 GitGame · Discover Great Games
       </div>
     </footer>
   );
