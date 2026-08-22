@@ -1,0 +1,47 @@
+datasource db {
+  provider = "sqlite" // 本地开发推荐 sqlite 零配置，生产环境可改为 postgresql
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Category {
+  id        String     @id @default(uuid())
+  name      String
+  slug      String     @unique
+  type      String     // "article" | "game"
+  articles  Article[]
+  games     MiniGame[]
+}
+
+model Article {
+  id          String    @id @default(uuid())
+  title       String
+  slug        String    @unique
+  summary     String?
+  content     String
+  type        String    @default("news") // "news" | "guide"
+  coverImage  String?
+  views       Int       @default(0)
+  categoryId  String?
+  category    Category? @relation(fields: [categoryId], references: [id])
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model MiniGame {
+  id          String    @id @default(uuid())
+  title       String
+  slug        String    @unique
+  description String?
+  coverImage  String
+  gameUrl     String
+  playCount   Int       @default(0)
+  featured    Boolean   @default(false)
+  categoryId  String?
+  category    Category? @relation(fields: [categoryId], references: [id])
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
