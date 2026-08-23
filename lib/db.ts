@@ -1,13 +1,36 @@
 import { ARTICLES as SEED_ARTICLES, MINI_GAMES as SEED_GAMES, Article, MiniGame } from './data';
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+/**
+ * Tolerant URL normalizer: env values are sometimes pasted from chat UIs as
+ * markdown links like "[https://xxx](https://xxx)" — extract the first valid URL.
+ */
+function normalizeSupabaseUrl(raw: string | undefined): string | undefined {
+  if (!raw) return undefined;
+  const value = raw.trim();
+  if (/^https?:\/\/[^\s]+$/i.test(value)) {
+    return value.replace(/\/+$/, '');
+  }
+  const match = value.match(/https?:\/\/[a-zA-Z0-9][a-zA-Z0-9.-]*[a-zA-Z0-9](?::\d+)?(?:\/[^\s)\]]*)?/i);
+  return match ? match[0].replace(/\/+$/, '') : undefined;
+}
+
+const RAW_SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+const RAW_SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const SUPABASE_URL = normalizeSupabaseUrl(RAW_SUPABASE_URL);
+const SUPABASE_KEY = RAW_SUPABASE_KEY?.trim();
 
 export const supabaseConfigured = Boolean(SUPABASE_URL && SUPABASE_KEY);
 
+function notConfiguredError(): string {
+  if (RAW_SUPABASE_URL && !SUPABASE_URL) {
+    return `SUPABASE_URL value is not a valid URL (got: ${JSON.stringify(RAW_SUPABASE_URL.slice(0, 120))}) — paste the plain URL https://ynuonowmzyivskiycmzm.supabase.co`;
+  }
+  return 'Supabase env vars are not set (SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY) — articles will NOT persist';
+}
+
 let lastStorageInfo: { source: 'supabase' | 'seed'; error?: string } = supabaseConfigured
   ? { source: 'supabase' }
-  : { source: 'seed', error: 'Supabase env vars are not set (SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY) — articles will NOT persist' };
+  : { source: 'seed', error: notConfiguredError() };
 
 export function storageInfo() {
   return { configured: supabaseConfigured, ...lastStorageInfo };
@@ -49,7 +72,7 @@ export const db = {
   articles: {
     findMany: async (): Promise<Article[]> => {
       if (!supabaseConfigured) {
-        lastStorageInfo = { source: 'seed', error: 'Supabase env vars are not set (SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY) — articles will NOT persist' };
+        lastStorageInfo = { source: 'seed', error: notConfiguredError() };
         return SEED_ARTICLES;
       }
       try {
