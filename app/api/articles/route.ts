@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { db, storageInfo } from '@/lib/db';
 
 export async function GET() {
   const articles = await db.articles.findMany();
-  return NextResponse.json({ success: true, data: articles });
+  return NextResponse.json({ success: true, data: articles, storage: storageInfo() });
 }
 
 export async function POST(request: Request) {

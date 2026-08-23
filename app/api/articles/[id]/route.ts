@@ -5,6 +5,10 @@ export async function DELETE(
   request: Request,
   { params }: { params: { id: string } }
 ) {
-  await db.articles.delete(params.id);
-  return NextResponse.json({ success: true, message: 'Article deleted' });
+  try {
+    await db.articles.delete(params.id);
+    return NextResponse.json({ success: true, message: 'Article deleted' });
+  } catch (error: any) {
+    return NextResponse.json({ success: false, message: error?.message || 'Delete failed' }, { status: 500 });
+  }
 }
