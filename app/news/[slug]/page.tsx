@@ -1,13 +1,21 @@
-import { ARTICLES } from '@/lib/data';
+import { db } from '@/lib/db';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
-export default function ArticleDetailPage({ params }: { params: { slug: string } }) {
-  const article = ARTICLES.find((a) => a.slug === params.slug);
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+export default async function ArticleDetailPage({ params }: { params: { slug: string } }) {
+  const article = await db.articles.findUnique(params.slug);
 
   if (!article) {
     notFound();
   }
+
+  const paragraphs = (article.content || '')
+    .split(/\n{2,}/)
+    .map((p) => p.trim())
+    .filter(Boolean);
 
   return (
     <main className="max-w-4xl mx-auto px-4 py-8 space-y-6">
@@ -39,12 +47,14 @@ export default function ArticleDetailPage({ params }: { params: { slug: string }
         </div>
 
         <div className="prose prose-invert max-w-none text-slate-300 text-sm sm:text-base leading-relaxed space-y-4">
-          <p className="font-semibold text-slate-200 text-lg border-l-4 border-emerald-500 pl-4">
-            {article.summary}
-          </p>
-          <p>
-            Here goes the full article content. You can write rich markdown, embed video previews, add gameplay screenshots, and link to relevant mini-games.
-          </p>
+          {article.summary && (
+            <p className="font-semibold text-slate-200 text-lg border-l-4 border-emerald-500 pl-4">
+              {article.summary}
+            </p>
+          )}
+          {paragraphs.map((para, i) => (
+            <p key={i}>{para}</p>
+          ))}
         </div>
       </article>
     </main>

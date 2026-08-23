@@ -1,8 +1,12 @@
-import { ARTICLES } from '@/lib/data';
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+import { db } from '@/lib/db';
 import ArticleCard from '@/components/ArticleCard';
 
-export default function GuidesPage() {
-  const guides = ARTICLES.filter(a => a.type === 'guide');
+export default async function GuidesPage() {
+  const articles = await db.articles.findMany();
+  const guides = articles.filter(a => a.type === 'guide');
 
   return (
     <main className="max-w-5xl mx-auto px-4 py-8 space-y-6">
