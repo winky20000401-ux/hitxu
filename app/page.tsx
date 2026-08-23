@@ -1,15 +1,18 @@
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 import Link from 'next/link';
-import { CATEGORIES, ARTICLES, MINI_GAMES } from '@/lib/data';
+import { CATEGORIES } from '@/lib/data';
+import { db } from '@/lib/db';
 import GameCard from '@/components/GameCard';
 import ArticleCard from '@/components/ArticleCard';
 
-export default function HomePage() {
-  const news = ARTICLES.filter(a => a.type === 'news');
-  const guides = ARTICLES.filter(a => a.type === 'guide');
+export default async function HomePage() {
+  const articles = await db.articles.findMany();
+  const miniGames = await db.games.findMany();
 
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-12">
-      {/* Hero Search & Category Filter Section */}
       <section className="text-center py-10 bg-gradient-to-b from-slate-900 to-slate-950 rounded-2xl border border-slate-800 px-4">
         <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight mb-4">
           Discover Great <span className="text-emerald-400">Games & Guides</span>
@@ -18,7 +21,6 @@ export default function HomePage() {
           Play instant online mini games, explore in-depth walkthroughs, and catch up on the latest gaming headlines.
         </p>
 
-        {/* Categories Bar */}
         <div className="flex flex-wrap justify-center gap-2 max-w-4xl mx-auto">
           {CATEGORIES.map((cat) => (
             <Link
@@ -32,7 +34,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Online Mini Games Section */}
       <section>
         <div className="flex items-center justify-between mb-6">
           <div>
@@ -46,15 +47,13 @@ export default function HomePage() {
           </Link>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {MINI_GAMES.map((game) => (
+          {miniGames.map((game) => (
             <GameCard key={game.id} game={game} />
           ))}
         </div>
       </section>
 
-      {/* Game News & Guides Dual Columns */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Game News Column */}
         <section>
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-bold text-white flex items-center gap-2">
@@ -65,13 +64,12 @@ export default function HomePage() {
             </Link>
           </div>
           <div className="space-y-4">
-            {ARTICLES.map((article) => (
+            {articles.filter(a => a.type === 'news').slice(0, 10).map((article) => (
               <ArticleCard key={article.id} article={article} />
             ))}
           </div>
         </section>
 
-        {/* Game Guides Column */}
         <section>
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-bold text-white flex items-center gap-2">
@@ -82,7 +80,7 @@ export default function HomePage() {
             </Link>
           </div>
           <div className="space-y-4">
-            {ARTICLES.slice().reverse().map((article) => (
+            {articles.filter(a => a.type === 'guide').slice(0, 10).map((article) => (
               <ArticleCard key={article.id} article={article} />
             ))}
           </div>
