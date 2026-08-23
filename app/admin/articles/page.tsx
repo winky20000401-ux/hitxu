@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { DEFAULT_GAMING_COVERS } from '@/lib/images';
 
 export default function AdminArticlesPage() {
   const [articles, setArticles] = useState<any[]>([]);
@@ -10,6 +11,7 @@ export default function AdminArticlesPage() {
   const [content, setContent] = useState('');
   const [type, setType] = useState('news');
   const [category, setCategory] = useState('General');
+  const [coverImage, setCoverImage] = useState(DEFAULT_GAMING_COVERS[0]);
 
   const fetchArticles = async () => {
     const res = await fetch('/api/articles');
@@ -21,6 +23,11 @@ export default function AdminArticlesPage() {
     fetchArticles();
   }, []);
 
+  const handleRandomCover = () => {
+    const random = DEFAULT_GAMING_COVERS[Math.floor(Math.random() * DEFAULT_GAMING_COVERS.length)];
+    setCoverImage(random);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title || !slug || !content) return;
@@ -28,7 +35,7 @@ export default function AdminArticlesPage() {
     const res = await fetch('/api/articles', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title, slug, summary, content, type, category }),
+      body: JSON.stringify({ title, slug, summary, content, type, category, coverImage }),
     });
 
     if (res.ok) {
@@ -36,6 +43,7 @@ export default function AdminArticlesPage() {
       setSlug('');
       setSummary('');
       setContent('');
+      handleRandomCover();
       fetchArticles();
       alert('文章發布成功！');
     }
@@ -54,7 +62,6 @@ export default function AdminArticlesPage() {
         <p className="text-sm text-slate-400 mt-1">新增、編輯與管理遊戲新聞、版本評測與深度攻略</p>
       </div>
 
-      {/* Create Article Form */}
       <form onSubmit={handleSubmit} className="bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-4">
         <h2 className="text-base font-bold text-emerald-400">發布新文章 / 攻略</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -103,9 +110,34 @@ export default function AdminArticlesPage() {
               type="text"
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              placeholder="RPG / Strategy / Action 等"
+              placeholder="RPG / Strategy / Action / Steam 等"
               className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:ring-2 focus:ring-emerald-500 outline-none"
             />
+          </div>
+        </div>
+
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <label className="block text-xs font-semibold text-slate-400">封面圖片 URL</label>
+            <button
+              type="button"
+              onClick={handleRandomCover}
+              className="text-xs text-emerald-400 hover:text-emerald-300 font-semibold"
+            >
+              🎲 隨機換一張精選封面
+            </button>
+          </div>
+          <div className="flex items-center gap-3">
+            <input
+              type="text"
+              value={coverImage}
+              onChange={(e) => setCoverImage(e.target.value)}
+              placeholder="https://images.unsplash.com/photo-..."
+              className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:ring-2 focus:ring-emerald-500 outline-none"
+            />
+            <div className="w-16 h-10 rounded-lg overflow-hidden border border-slate-700 bg-slate-800 flex-shrink-0">
+              <img src={coverImage} alt="封面預覽" className="w-full h-full object-cover" />
+            </div>
           </div>
         </div>
 
@@ -140,13 +172,13 @@ export default function AdminArticlesPage() {
         </button>
       </form>
 
-      {/* Articles List */}
       <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
         <h2 className="text-base font-bold text-white mb-4">現有文章列表</h2>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm text-slate-300">
             <thead className="bg-slate-800/60 text-xs text-slate-400 uppercase">
               <tr>
+                <th className="p-3">封面</th>
                 <th className="p-3">標題</th>
                 <th className="p-3">類型</th>
                 <th className="p-3">分類</th>
@@ -157,7 +189,10 @@ export default function AdminArticlesPage() {
             <tbody className="divide-y divide-slate-800">
               {articles.map((a) => (
                 <tr key={a.id} className="hover:bg-slate-800/40">
-                  <td className="p-3 font-medium text-white">{a.title}</td>
+                  <td className="p-3">
+                    <img src={a.coverImage} alt={a.title} className="w-12 h-8 object-cover rounded" />
+                  </td>
+                  <td className="p-3 font-medium text-white max-w-xs truncate">{a.title}</td>
                   <td className="p-3 text-xs uppercase font-semibold text-emerald-400">{a.type}</td>
                   <td className="p-3 text-xs">{a.category}</td>
                   <td className="p-3 text-xs">{a.views}</td>
