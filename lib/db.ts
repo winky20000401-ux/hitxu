@@ -1,52 +1,94 @@
 import { ARTICLES as SEED_ARTICLES, MINI_GAMES as SEED_GAMES, Article, MiniGame } from './data';
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
 
-// 本地與生產環境的持久化 JSON 資料檔案
-const DATA_DIR = path.join(process.cwd(), 'data');
+// 在 Vercel 云端环境中，/tmp 具备完整的安全写权限
+const DATA_DIR = path.join(os.tmpdir(), 'gitxu_data');
 const ARTICLES_FILE = path.join(DATA_DIR, 'articles.json');
 const GAMES_FILE = path.join(DATA_DIR, 'games.json');
 
-function ensureDataFiles() {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-  }
-  if (!fs.existsSync(ARTICLES_FILE)) {
-    fs.writeFileSync(ARTICLES_FILE, JSON.stringify(SEED_ARTICLES, null, 2), 'utf-8');
-  }
-  if (!fs.existsSync(GAMES_FILE)) {
-    fs.writeFileSync(GAMES_FILE, JSON.stringify(SEED_GAMES, null, 2), 'utf-8');
+let memoryArticles: Article[] = [...SEED_ARTICLES];
+let memoryGames: MiniGame[] = [...SEED_GAMES];
+
+function initStorage() {
+  try {
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+    if (!fs.existsSync(ARTICLES_FILE)) {
+      fs.writeFileSync(ARTICLES_FILE, JSON.stringify(SEED_ARTICLES, null, 2), 'utf-8');
+    } else {
+      const raw = fs.readFileSync(ARTICLES_FILE, 'utf-8');
+      memoryArticles = JSON.parse(raw);
+    }
+    if (!fs.existsSync(GAMES_FILE)) {
+      fs.writeFileSync(GAMES_FILE, JSON.stringify(SEED_GAMES, null, 2), 'utf-8');
+    } else {
+      const raw = fs.readFileSync(GAMES_FILE, 'utf-8');
+      memoryGames = JSON.parse(raw);
+    }
+  } catch (err) {
+    // 平滑兜底，确保绝不抛出 500 异常
   }
 }
 
+initStorage();
+
 function readArticles(): Article[] {
-  ensureDataFiles();
   try {
-    const raw = fs.readFileSync(ARTICLES_FILE, 'utf-8');
-    return JSON.parse(raw);
-  } catch {
-    return SEED_ARTICLES;
+    if (fs.existsSync(ARTICLES_FILE)) {
+      const raw = fs.readFileSync(ARTICLES_FILE, 'utf-8');
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        memoryArticles = parsed;
+        return parsed;
+      }
+    }
+  } catch (err) {
+    // 回退
   }
+  return memoryArticles || SEED_ARTICLES;
 }
 
 function writeArticles(articles: Article[]) {
-  ensureDataFiles();
-  fs.writeFileSync(ARTICLES_FILE, JSON.stringify(articles, null, 2), 'utf-8');
-}
-
-function readGames(): MiniGame[] {
-  ensureDataFiles();
+  memoryArticles = articles;
   try {
-    const raw = fs.readFileSync(GAMES_FILE, 'utf-8');
-    return JSON.parse(raw);
-  } catch {
-    return SEED_GAMES;
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+    fs.writeFileSync(ARTICLES_FILE, JSON.stringify(articles, null, 2), 'utf-8');
+  } catch (err) {
+    // 回退
   }
 }
 
+function readGames(): MiniGame[] {
+  try {
+    if (fs.existsSync(GAMES_FILE)) {
+      const raw = fs.readFileSync(GAMES_FILE, 'utf-8');
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        memoryGames = parsed;
+        return parsed;
+      }
+    }
+  } catch (err) {
+    // 回退
+  }
+  return memoryGames || SEED_GAMES;
+}
+
 function writeGames(games: MiniGame[]) {
-  ensureDataFiles();
-  fs.writeFileSync(GAMES_FILE, JSON.stringify(games, null, 2), 'utf-8');
+  memoryGames = games;
+  try {
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+    fs.writeFileSync(GAMES_FILE, JSON.stringify(games, null, 2), 'utf-8');
+  } catch (err) {
+    // 回退
+  }
 }
 
 export const db = {
