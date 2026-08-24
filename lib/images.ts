@@ -16,9 +16,9 @@ export const DEFAULT_GAMING_COVERS = [
 export function extractFirstImageFromContent(content: string): string | null {
   if (!content || typeof content !== 'string') return null;
   const mdMatch = content.match(/!\[.*?\]\((https?:\/\/[^\s\)]+)\)/i);
-  if (mdMatch && mdMatch) return mdMatch;
+  if (mdMatch && mdMatch[1]) return mdMatch[1];
   const htmlMatch = content.match(/<img\s+[^>]*?src=["'](https?:\/\/[^"']+)["']/i);
-  if (htmlMatch && htmlMatch) return htmlMatch;
+  if (htmlMatch && htmlMatch[1]) return htmlMatch[1];
   const rawMatch = content.match(/https?:\/\/[^\s"'<>\)]+\.(?:png|jpg|jpeg|webp|gif|svg)(?:\?[^\s"'<>\)]*)?/i);
   if (rawMatch && rawMatch[0]) return rawMatch[0];
   return null;

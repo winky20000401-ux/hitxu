@@ -138,6 +138,38 @@ export const db = {
       }
       return newArticle;
     },
+    update: async (id: string, data: { coverImage?: string; title?: string; summary?: string; content?: string; type?: string; category?: string }): Promise<Article> => {
+      if (!supabaseConfigured) {
+        throw new Error('Supabase is NOT configured — article was NOT updated.');
+      }
+      const patch: Record<string, unknown> = {};
+      if (data.coverImage !== undefined) patch.cover_image = data.coverImage;
+      if (data.title !== undefined) patch.title = data.title;
+      if (data.summary !== undefined) patch.summary = data.summary;
+      if (data.content !== undefined) patch.content = data.content;
+      if (data.type !== undefined) patch.type = data.type;
+      if (data.category !== undefined) patch.category = data.category;
+      if (Object.keys(patch).length === 0) {
+        throw new Error('No fields to update');
+      }
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/gitxu_articles?id=eq.${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        headers: {
+          apikey: SUPABASE_KEY!,
+          Authorization: `Bearer ${SUPABASE_KEY}`,
+          'Content-Type': 'application/json',
+          Prefer: 'return=representation',
+        },
+        body: JSON.stringify(patch),
+      });
+      if (!res.ok) {
+        const errText = await res.text().catch(() => '');
+        throw new Error(`Supabase update failed (${res.status}): ${errText.slice(0, 300)}`);
+      }
+      const rows = await res.json();
+      const row = Array.isArray(rows) ? rows[0] : null;
+      return row ? mapRow(row) : { id, slug: '', title: '', summary: '', content: '', type: 'news', category: 'General', coverImage: data.coverImage || '', publishedAt: 'Just now', views: 0 };
+    },
     delete: async (id: string): Promise<boolean> => {
       if (!supabaseConfigured) {
         throw new Error('Supabase is NOT configured — article was NOT deleted.');
