@@ -64,6 +64,7 @@ function mapRow(item: any): Article {
     category: item.category || 'General',
     coverImage: item.cover_image || item.coverImage || FALLBACK_COVER,
     publishedAt: toRelativeTime(item.published_at),
+    publishedAtISO: (typeof item.published_at === 'string' && item.published_at) || undefined,
     views: item.views || 0,
   };
 }
@@ -76,10 +77,13 @@ export const db = {
         return SEED_ARTICLES;
       }
       try {
+        // PostgREST 默认单次最多返回 1000 行，Range 头放宽到 5 万，避免文章过千后被截断
         const res = await fetch(`${SUPABASE_URL}/rest/v1/gitxu_articles?select=*&order=created_at.desc`, {
           headers: {
             apikey: SUPABASE_KEY!,
             Authorization: `Bearer ${SUPABASE_KEY}`,
+            Range: '0-49999',
+            Prefer: 'count=none',
           },
           cache: 'no-store',
         });
@@ -97,9 +101,66 @@ export const db = {
       }
       return SEED_ARTICLES;
     },
+    findRecent: async (opts: { excludeSlug?: string; type?: string; limit?: number }): Promise<Article[]> => {
+      // 内链网络专用小查询：最新/相关文章，带索引条件 + limit，不拉全量
+      const limit = Math.min(Math.max(opts.limit || 8, 1), 50);
+      if (!supabaseConfigured) {
+        let list = SEED_ARTICLES.filter(a => a.slug !== opts.excludeSlug);
+        if (opts.type) list = list.filter(a => a.type === opts.type);
+        return list.slice(0, limit);
+      }
+      const params = new URLSearchParams();
+      if (opts.type) params.set('type', `eq.${opts.type}`);
+      if (opts.excludeSlug) params.set('slug', `neq.${opts.excludeSlug}`);
+      params.set('select', '*');
+      params.set('order', 'created_at.desc');
+      params.set('limit', String(limit));
+      try {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/gitxu_articles?${params.toString()}`, {
+          headers: {
+            apikey: SUPABASE_KEY!,
+            Authorization: `Bearer ${SUPABASE_KEY}`,
+          },
+          cache: 'no-store',
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data)) return data.map(mapRow);
+        }
+      } catch {
+        // 内链模块查询失败不阻塞正文渲染
+      }
+      return [];
+    },
     findUnique: async (slug: string): Promise<Article | undefined> => {
-      const all = await db.articles.findMany();
-      return all.find(a => a.slug === slug || a.id === slug);
+      // 单篇直查（slug=eq），不再全量拉取上千篇
+      if (!supabaseConfigured) {
+        return SEED_ARTICLES.find(a => a.slug === slug || a.id === slug);
+      }
+      try {
+        const res = await fetch(
+          `${SUPABASE_URL}/rest/v1/gitxu_articles?or=(slug.eq.${encodeURIComponent(slug)},id.eq.${encodeURIComponent(slug)})&select=*&limit=1`,
+          {
+            headers: {
+              apikey: SUPABASE_KEY!,
+              Authorization: `Bearer ${SUPABASE_KEY}`,
+            },
+            cache: 'no-store',
+          }
+        );
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data) && data.length > 0) {
+            lastStorageInfo = { source: 'supabase' };
+            return mapRow(data[0]);
+          }
+          return undefined;
+        }
+        lastStorageInfo = { source: 'seed', error: `Supabase single read failed: ${res.status}` };
+      } catch (err: any) {
+        lastStorageInfo = { source: 'seed', error: `Supabase single read error: ${err?.message || err}` };
+      }
+      return undefined;
     },
     create: async (data: Omit<Article, 'id' | 'views' | 'publishedAt'>): Promise<Article> => {
       if (!supabaseConfigured) {

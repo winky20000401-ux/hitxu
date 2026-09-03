@@ -14,6 +14,8 @@ export interface Article {
   category: string;
   coverImage: string;
   publishedAt: string;
+  /** 原始 ISO 8601 发布时间（sitemap lastmod / JSON-LD datePublished 用），seed 数据可能没有 */
+  publishedAtISO?: string;
   views: number;
 }
 
