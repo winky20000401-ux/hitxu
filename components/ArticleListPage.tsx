@@ -1,4 +1,5 @@
 import { db } from '@/lib/db';
+import { notFound } from 'next/navigation';
 import ArticleCard from './ArticleCard';
 import Pagination from './Pagination';
 import type { Article } from '@/lib/data';
@@ -14,8 +15,9 @@ export default async function ArticleListPage({ kind, page }: { kind: 'news' | '
   const articles = await db.articles.findMany();
   const list = articles.filter((a: Article) => a.type === kind);
   const totalPages = Math.max(1, Math.ceil(list.length / PAGE_SIZE));
-  const safePage = Math.min(Math.max(page, 1), totalPages);
-  const slice = list.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+  // 越界页（/news/page/999）返回 404，避免渲染成与末页相同的软重复内容
+  if (page > totalPages) notFound();
+  const slice = list.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const isNews = kind === 'news';
   const basePath = isNews ? '/news' : '/guides';
@@ -39,7 +41,7 @@ export default async function ArticleListPage({ kind, page }: { kind: 'news' | '
         ))}
       </div>
 
-      <Pagination basePath={basePath} current={safePage} total={totalPages} />
+      <Pagination basePath={basePath} current={page} total={totalPages} />
     </main>
   );
 }
