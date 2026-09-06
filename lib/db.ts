@@ -142,29 +142,42 @@ export const db = {
       // 允许多词短语（如 "honor of kings"），单段长度 4+，杜绝空串与特殊字符
       const tokens = (opts.tokens || []).filter((t) => /^[a-z0-9]{4,}([ ][a-z0-9]{2,}){0,3}$/.test(t)).slice(0, 3);
       if (!supabaseConfigured || tokens.length === 0) return [];
-      const conds = tokens.map((t) => `title.ilike.*${t}*`).join(',');
-      const params = new URLSearchParams();
-      params.set('or', `(${conds})`);
-      params.set('select', '*');
-      params.set('order', 'created_at.desc');
-      params.set('limit', String(limit));
-      if (opts.excludeSlug) params.set('slug', `neq.${opts.excludeSlug}`);
-      try {
-        const res = await fetch(`${SUPABASE_URL}/rest/v1/gitxu_articles?${params.toString()}`, {
-          headers: {
-            apikey: SUPABASE_KEY!,
-            Authorization: `Bearer ${SUPABASE_KEY}`,
-          },
-          cache: 'no-store',
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (Array.isArray(data)) return data.map(mapRow);
+      // 按 token 优先级逐个检索（首个 token 通常是主主题），合并去重直到取满
+      const seenSlugs: { [s: string]: boolean } = {};
+      const out: Article[] = [];
+      for (const token of tokens) {
+        if (out.length >= limit) break;
+        const params = new URLSearchParams();
+        params.set('title', `ilike.*${token}*`);
+        params.set('select', '*');
+        params.set('order', 'created_at.desc');
+        params.set('limit', String(limit));
+        if (opts.excludeSlug) params.set('slug', `neq.${opts.excludeSlug}`);
+        try {
+          const res = await fetch(`${SUPABASE_URL}/rest/v1/gitxu_articles?${params.toString()}`, {
+            headers: {
+              apikey: SUPABASE_KEY!,
+              Authorization: `Bearer ${SUPABASE_KEY}`,
+            },
+            cache: 'no-store',
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (Array.isArray(data)) {
+              for (const row of data) {
+                if (out.length >= limit) break;
+                if (row.slug && !seenSlugs[row.slug]) {
+                  seenSlugs[row.slug] = true;
+                  out.push(mapRow(row));
+                }
+              }
+            }
+          }
+        } catch {
+          // 相关检索失败不影响正文渲染
         }
-      } catch {
-        // 相关检索失败不影响正文渲染
       }
-      return [];
+      return out;
     },
     findUnique: async (slug: string): Promise<Article | undefined> => {
       // 单篇直查（slug=eq），不再全量拉取上千篇
