@@ -62,10 +62,19 @@ export default async function ArticleDetailPage({ params }: { params: { slug: st
     permanentRedirect(`/news/${article.slug}`);
   }
 
-  // 内链网络（P1 主题化）：先按标题 token 检索同主题文章（跨全库），
-  // 不足 6 篇再用同类型最新文章补齐；侧栏仍为全站最新 8 篇。
+  // 内链网络（P1 主题化）：检索词 = 已知主题关键词（gta / honor of kings…）优先，
+  // 再补标题辨识 token（营销词已过滤）；不足 6 篇用同类型最新文章补齐。
   // 全部 <a> 直出供爬虫沿文章间抓取。
-  const tokens = topTitleTokens(article.title);
+  const topicKws = articleTopics(article, 3).flatMap((t) => t.keywords);
+  const genericKws = topTitleTokens(
+    topicKws.reduce((acc, kw) => acc.replace(new RegExp(kw, 'gi'), ''), article.title),
+    Math.max(3 - topicKws.length, 0)
+  );
+  const tokens: string[] = [];
+  for (const kw of [...topicKws, ...genericKws]) {
+    if (tokens.length >= 3) break;
+    if (!tokens.includes(kw.toLowerCase())) tokens.push(kw.toLowerCase());
+  }
   const [topicHits, sameType, latest] = await Promise.all([
     tokens.length > 0
       ? db.articles.searchByTitle({ tokens, excludeSlug: article.slug, limit: 12 })
