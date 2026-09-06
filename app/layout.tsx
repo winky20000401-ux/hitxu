@@ -3,6 +3,7 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 
 export const metadata = {
+  metadataBase: new URL('https://www.gitxu.com'),
   title: 'GitGame - Discover Great Games, News & Mini Games',
   description: 'Instant play online H5 mini games and latest game guides and news.',
   verification: {

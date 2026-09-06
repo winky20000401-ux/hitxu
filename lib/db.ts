@@ -91,7 +91,9 @@ export const db = {
           const data = await res.json();
           if (Array.isArray(data)) {
             lastStorageInfo = { source: 'supabase' };
-            return data.length > 0 ? data.map(mapRow) : SEED_ARTICLES;
+            // 配置了 Supabase 后即使空表/异常也不回落 seed 假文章，
+            // 避免占位内容混进 sitemap / 列表页被 Google 抓取
+            return data.map(mapRow);
           }
         }
         const errText = await res.text().catch(() => '');
@@ -99,7 +101,8 @@ export const db = {
       } catch (err: any) {
         lastStorageInfo = { source: 'seed', error: `Supabase read error: ${err?.message || err}` };
       }
-      return SEED_ARTICLES;
+      // 读取失败时返回空列表（而非 seed 假文章）——空列表只是暂缺内容，假文章会被 Google 收录成垃圾页
+      return [];
     },
     findRecent: async (opts: { excludeSlug?: string; type?: string; limit?: number }): Promise<Article[]> => {
       // 内链网络专用小查询：最新/相关文章，带索引条件 + limit，不拉全量

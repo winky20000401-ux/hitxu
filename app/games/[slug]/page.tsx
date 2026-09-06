@@ -1,6 +1,17 @@
+import type { Metadata } from 'next';
 import { MINI_GAMES } from '@/lib/data';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+
+export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
+  const game = MINI_GAMES.find((g) => g.slug === params.slug);
+  if (!game) return { title: 'Game Not Found | GitGame' };
+  return {
+    title: `${game.title} - Play Free Online | GitGame`,
+    description: (game.description || `Play ${game.title} free in your browser, no download needed.`).slice(0, 160),
+    alternates: { canonical: `https://www.gitxu.com/games/${game.slug}` },
+  };
+}
 
 export default function PlayGamePage({ params }: { params: { slug: string } }) {
   const game = MINI_GAMES.find((g) => g.slug === params.slug);

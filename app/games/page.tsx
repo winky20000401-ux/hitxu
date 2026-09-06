@@ -1,6 +1,14 @@
+import type { Metadata } from 'next';
 import { MINI_GAMES, CATEGORIES } from '@/lib/data';
 import GameCard from '@/components/GameCard';
 import Link from 'next/link';
+
+export const metadata: Metadata = {
+  title: 'Free Online Mini Games - Play Instantly in Your Browser | GitGame',
+  description:
+    'Classic HTML5 mini games — Tetris, Snake, 2048 and more. Play free on PC or mobile, no download or install needed.',
+  alternates: { canonical: 'https://www.gitxu.com/games' },
+};
 
 export default function GamesCatalogPage() {
   return (

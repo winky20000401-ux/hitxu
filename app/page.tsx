@@ -2,10 +2,18 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 import Link from 'next/link';
+import type { Metadata } from 'next';
 import { CATEGORIES } from '@/lib/data';
 import { db } from '@/lib/db';
 import GameCard from '@/components/GameCard';
 import ArticleCard from '@/components/ArticleCard';
+
+export const metadata: Metadata = {
+  title: 'GitGame - Free Online Mini Games, Game News & Guides',
+  description:
+    'Play instant browser mini games, master in-depth game guides, and catch up on daily gaming news — all free, no downloads.',
+  alternates: { canonical: 'https://www.gitxu.com/' },
+};
 
 export default async function HomePage() {
   const articles = await db.articles.findMany();
