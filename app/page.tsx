@@ -16,7 +16,12 @@ export const metadata: Metadata = {
 };
 
 export default async function HomePage() {
-  const articles = await db.articles.findMany();
+  // 首页只展示最新各 10 篇：用带 limit 的窄查询替代全量拉取（TTFB 优化），
+  // 不再为切 10 篇而把上千篇文章拖下来
+  const [newsArticles, guideArticles] = await Promise.all([
+    db.articles.findRecent({ type: 'news', limit: 10 }),
+    db.articles.findRecent({ type: 'guide', limit: 10 }),
+  ]);
   const miniGames = await db.games.findMany();
 
   return (
@@ -72,7 +77,7 @@ export default async function HomePage() {
             </Link>
           </div>
           <div className="space-y-4">
-            {articles.filter(a => a.type === 'news').slice(0, 10).map((article) => (
+            {newsArticles.map((article) => (
               <ArticleCard key={article.id} article={article} />
             ))}
           </div>
@@ -88,7 +93,7 @@ export default async function HomePage() {
             </Link>
           </div>
           <div className="space-y-4">
-            {articles.filter(a => a.type === 'guide').slice(0, 10).map((article) => (
+            {guideArticles.map((article) => (
               <ArticleCard key={article.id} article={article} />
             ))}
           </div>

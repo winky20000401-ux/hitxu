@@ -1,6 +1,6 @@
 import { db } from '@/lib/db';
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
+import { notFound, permanentRedirect } from 'next/navigation';
 import type { Metadata } from 'next';
 import type { Article } from '@/lib/data';
 import { topTitleTokens } from '@/lib/related';
@@ -54,6 +54,12 @@ export default async function ArticleDetailPage({ params }: { params: { slug: st
 
   if (!article) {
     notFound();
+  }
+
+  // findUnique 兼容按数字 id 命中（旧接口用法）。正式 URL 只认 slug：
+  // 用 id 访问时 301 收敛到规范地址，避免同内容双 URL
+  if (article.slug && params.slug !== article.slug) {
+    permanentRedirect(`/news/${article.slug}`);
   }
 
   // 内链网络（P1 主题化）：先按标题 token 检索同主题文章（跨全库），
