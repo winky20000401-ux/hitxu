@@ -139,8 +139,8 @@ export const db = {
       // 主题相关检索：按标题 token 做 PostgREST ilike 检索（word token 已过滤特殊字符），
       // 让「相关文章」按游戏/主题聚合，而非只按最新。失败静默返回空，不阻塞正文渲染。
       const limit = Math.min(Math.max(opts.limit || 12, 1), 30);
-      // 允许多词短语（如 "honor of kings"），单段长度 4+，杜绝空串与特殊字符
-      const tokens = (opts.tokens || []).filter((t) => /^[a-z0-9]{4,}([ ][a-z0-9]{2,}){0,3}$/.test(t)).slice(0, 3);
+      // 允许多词短语（如 "honor of kings"）；单段最短 3 位（gta/wow/cod 均为 3 字母关键词），杜绝空串与特殊字符
+      const tokens = (opts.tokens || []).filter((t) => /^[a-z0-9]{3,}([ ][a-z0-9]{2,}){0,3}$/.test(t)).slice(0, 3);
       if (!supabaseConfigured || tokens.length === 0) return [];
       // 按 token 优先级逐个检索（首个 token 通常是主主题），合并去重直到取满
       const seenSlugs: { [s: string]: boolean } = {};
