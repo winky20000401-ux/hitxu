@@ -14,6 +14,7 @@ export default function Navbar() {
             <Link href="/games" className="hover:text-emerald-400 transition-colors">Mini Games</Link>
             <Link href="/news" className="hover:text-emerald-400 transition-colors">News</Link>
             <Link href="/guides" className="hover:text-emerald-400 transition-colors">Guides</Link>
+            <Link href="/topics" className="hover:text-emerald-400 transition-colors">Topics</Link>
             <Link
               href="https://wanderers-ledger.jadetan48984407.chatgpt.site"
               className="hover:text-emerald-400 transition-colors"

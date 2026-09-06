@@ -1,5 +1,6 @@
 import type { MetadataRoute } from 'next';
 import { db } from '@/lib/db';
+import { activeTopics } from '@/lib/topics';
 
 // 动态 sitemap：每次请求实时从 Supabase 拉全量文章，
 // 新文章发布后无需重新部署即可出现在 sitemap 中
@@ -61,7 +62,22 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.6,
     }));
 
+  // 主题聚合页：只收录文章量达标（≥5 篇）的主题，薄页不进 sitemap
+  const topics = activeTopics(articles);
+  const topicRoutes: MetadataRoute.Sitemap = [
+    { url: `${BASE}/topics`, changeFrequency: 'daily', priority: 0.6 },
+  ];
+  for (const t of topics) {
+    const lm = latestISO(t.articles);
+    topicRoutes.push({
+      url: `${BASE}/topics/${t.topic.slug}`,
+      ...(lm ? { lastModified: new Date(lm) } : {}),
+      changeFrequency: 'daily',
+      priority: t.count >= 20 ? 0.7 : 0.6,
+    });
+  }
+
   // 注：文章量 < 5 万，单文件即可；若未来过万，
   // 在此按月份切分并新增 sitemap index（/sitemap-news-N.xml），勿重复造轮子。
-  return [...staticRoutes, ...articleRoutes];
+  return [...staticRoutes, ...topicRoutes, ...articleRoutes];
 }

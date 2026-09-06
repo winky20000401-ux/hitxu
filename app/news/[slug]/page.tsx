@@ -3,6 +3,8 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import type { Article } from '@/lib/data';
+import { topTitleTokens } from '@/lib/related';
+import { articleTopics } from '@/lib/topics';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -54,11 +56,27 @@ export default async function ArticleDetailPage({ params }: { params: { slug: st
     notFound();
   }
 
-  // 内链网络：相关文章（同类型 6 篇）+ 全站最新文章（8 篇），<a> 直出供爬虫抓取
-  const [related, latest] = await Promise.all([
-    db.articles.findRecent({ excludeSlug: article.slug, type: article.type, limit: 6 }),
+  // 内链网络（P1 主题化）：先按标题 token 检索同主题文章（跨全库），
+  // 不足 6 篇再用同类型最新文章补齐；侧栏仍为全站最新 8 篇。
+  // 全部 <a> 直出供爬虫沿文章间抓取。
+  const tokens = topTitleTokens(article.title);
+  const [topicHits, sameType, latest] = await Promise.all([
+    tokens.length > 0
+      ? db.articles.searchByTitle({ tokens, excludeSlug: article.slug, limit: 12 })
+      : Promise.resolve([] as Article[]),
+    db.articles.findRecent({ excludeSlug: article.slug, type: article.type, limit: 12 }),
     db.articles.findRecent({ excludeSlug: article.slug, limit: 8 }),
   ]);
+  const seenSlugs = new Set<string>([article.slug]);
+  const related: Article[] = [];
+  for (const a of [...topicHits, ...sameType]) {
+    if (related.length >= 6) break;
+    if (a.slug && !seenSlugs.has(a.slug)) {
+      seenSlugs.add(a.slug);
+      related.push(a);
+    }
+  }
+  const topics = articleTopics(article);
 
   const paragraphs = (article.content || '')
     .split(/\n{2,}/)
@@ -140,6 +158,22 @@ export default async function ArticleDetailPage({ params }: { params: { slug: st
               ))}
             </div>
           </div>
+
+          {/* 主题聚合入口：把同类内容收拢到 /topics 页，构成 首页→主题→文章 层级 */}
+          {topics.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              <span className="text-slate-500">More on:</span>
+              {topics.map((t) => (
+                <Link
+                  key={t.slug}
+                  href={`/topics/${t.slug}`}
+                  className="px-2.5 py-1 rounded-full bg-slate-900 border border-slate-800 text-slate-300 hover:border-emerald-600 hover:text-emerald-400 transition-colors"
+                >
+                  {t.name} »
+                </Link>
+              ))}
+            </div>
+          )}
 
           {/* 相关文章（同类型） */}
           {related.length > 0 && (

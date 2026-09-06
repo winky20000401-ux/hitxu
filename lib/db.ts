@@ -135,6 +135,36 @@ export const db = {
       }
       return [];
     },
+    searchByTitle: async (opts: { tokens: string[]; excludeSlug?: string; limit?: number }): Promise<Article[]> => {
+      // 主题相关检索：按标题 token 做 PostgREST ilike 检索（word token 已过滤特殊字符），
+      // 让「相关文章」按游戏/主题聚合，而非只按最新。失败静默返回空，不阻塞正文渲染。
+      const limit = Math.min(Math.max(opts.limit || 12, 1), 30);
+      const tokens = (opts.tokens || []).filter((t) => /^[a-z0-9]{4,}$/.test(t)).slice(0, 3);
+      if (!supabaseConfigured || tokens.length === 0) return [];
+      const conds = tokens.map((t) => `title.ilike.*${t}*`).join(',');
+      const params = new URLSearchParams();
+      params.set('or', `(${conds})`);
+      params.set('select', '*');
+      params.set('order', 'created_at.desc');
+      params.set('limit', String(limit));
+      if (opts.excludeSlug) params.set('slug', `neq.${opts.excludeSlug}`);
+      try {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/gitxu_articles?${params.toString()}`, {
+          headers: {
+            apikey: SUPABASE_KEY!,
+            Authorization: `Bearer ${SUPABASE_KEY}`,
+          },
+          cache: 'no-store',
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data)) return data.map(mapRow);
+        }
+      } catch {
+        // 相关检索失败不影响正文渲染
+      }
+      return [];
+    },
     findUnique: async (slug: string): Promise<Article | undefined> => {
       // 单篇直查（slug=eq），不再全量拉取上千篇
       if (!supabaseConfigured) {
