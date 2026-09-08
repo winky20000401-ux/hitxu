@@ -7,6 +7,12 @@ import { CATEGORIES } from '@/lib/data';
 import { db } from '@/lib/db';
 import GameCard from '@/components/GameCard';
 import ArticleCard from '@/components/ArticleCard';
+import RecommendedPicks from '@/components/RecommendedPicks';
+
+/** 首页「随机推荐」刷新窗口：20 分钟换一批 */
+const RECOMMEND_WINDOW_MINUTES = 20;
+const RECOMMEND_WINDOW_MS = RECOMMEND_WINDOW_MINUTES * 60 * 1000;
+const RECOMMEND_COUNT = 6;
 
 export const metadata: Metadata = {
   title: 'GitGame - Free Online Mini Games, Game News & Guides',
@@ -23,6 +29,15 @@ export default async function HomePage() {
     db.articles.findRecent({ type: 'guide', limit: 10 }),
   ]);
   const miniGames = await db.games.findMany();
+
+  // 随机推荐：按 20 分钟时间窗生成 seed → 同一窗口内输出稳定，窗口一过自动换一批。
+  // 排除下方「Latest News / Pro Guides」已展示的 slug，避免同一屏重复。
+  const recommendedArticles = await db.articles.findRandom({
+    limit: RECOMMEND_COUNT,
+    seed: Math.floor(Date.now() / RECOMMEND_WINDOW_MS),
+    poolSize: 300,
+    excludeSlugs: [...newsArticles, ...guideArticles].map((a) => a.slug),
+  });
 
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-12">
@@ -46,6 +61,8 @@ export default async function HomePage() {
           ))}
         </div>
       </section>
+
+      <RecommendedPicks articles={recommendedArticles} windowMinutes={RECOMMEND_WINDOW_MINUTES} />
 
       <section>
         <div className="flex items-center justify-between mb-6">

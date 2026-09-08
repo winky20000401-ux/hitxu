@@ -53,6 +53,31 @@ function toRelativeTime(value: unknown): string {
   return `${months} month${months > 1 ? 's' : ''} ago`;
 }
 
+/**
+ * 确定性伪随机（mulberry32）：同一 seed 必得同一序列。
+ * 首页「随机推荐」按时间窗口生成 seed，保证同一窗口内所有访客（含 Googlebot）
+ * 看到的是同一批文章，窗口一过自动换一批 —— 无需客户端 JS，SSR 输出稳定。
+ */
+function mulberry32(seed: number): () => number {
+  let a = seed >>> 0;
+  return function () {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function seededShuffle<T>(input: T[], seed: number): T[] {
+  const arr = input.slice();
+  const rand = mulberry32(seed);
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
 function mapRow(item: any): Article {
   return {
     id: String(item.id),
@@ -132,6 +157,74 @@ export const db = {
         }
       } catch {
         // 内链模块查询失败不阻塞正文渲染
+      }
+      return [];
+    },
+    /**
+     * 随机推荐：只取轻量字段的候选池 → 按 seed 确定性洗牌 → 截取前 N 篇。
+     * - seed 由调用方按时间窗口生成（如 Math.floor(Date.now() / 20min)），
+     *   同一窗口内 SSR 输出完全一致，20 分钟后自动换一批。
+     * - excludeSlugs 用于避开首页其它区块已展示的文章；池子不够时回落到已排除项补齐，
+     *   保证区块永远填满。
+     * - 失败静默返回空数组，不阻塞首页渲染。
+     */
+    findRandom: async (opts: { limit?: number; seed?: number; poolSize?: number; excludeSlugs?: string[] } = {}): Promise<Article[]> => {
+      const limit = Math.min(Math.max(opts.limit || 6, 1), 24);
+      const poolSize = Math.min(Math.max(opts.poolSize || 300, limit), 1000);
+      const exclude = new Set((opts.excludeSlugs || []).filter(Boolean));
+      const seed = Number.isFinite(opts.seed) ? Number(opts.seed) : Math.floor(Date.now() / 600000);
+
+      const pick = (pool: Article[]): Article[] => {
+        const fresh = seededShuffle(pool.filter((a) => a.slug && !exclude.has(a.slug)), seed);
+        if (fresh.length >= limit) return fresh.slice(0, limit);
+        // 池子被排除项吃掉太多 → 用被排除的文章补齐，避免区块开天窗
+        const rest = seededShuffle(pool.filter((a) => a.slug && exclude.has(a.slug)), seed + 1);
+        return fresh.concat(rest).slice(0, limit);
+      };
+
+      // 本地无 Supabase 时只有 3 篇 seed，排除逻辑会让区块重复/为空 —— 直接洗牌即可
+      if (!supabaseConfigured) return seededShuffle(SEED_ARTICLES, seed).slice(0, limit);
+
+      const select = 'id,slug,title,summary,category,type,cover_image,published_at,views';
+      const headers = {
+        apikey: SUPABASE_KEY!,
+        Authorization: `Bearer ${SUPABASE_KEY}`,
+      };
+
+      // 先取总数（只回 1 行 + Content-Range，开销极小），让随机窗口能滑到老文章，
+      // 而不是永远只在最新 poolSize 篇里打转。拿不到总数就退化为 offset=0。
+      let offset = 0;
+      try {
+        const countRes = await fetch(`${SUPABASE_URL}/rest/v1/gitxu_articles?select=id&limit=1`, {
+          headers: { ...headers, Prefer: 'count=estimated' },
+          cache: 'no-store',
+        });
+        const range = countRes.headers.get('content-range') || '';
+        const matched = range.match(/\/(\d+)\s*$/);
+        const total = matched ? Number(matched[1]) : NaN;
+        if (Number.isFinite(total) && total > poolSize) {
+          offset = Math.floor(mulberry32(seed ^ 0x9e3779b9)() * (total - poolSize + 1));
+        }
+      } catch {
+        // 总数拿不到不影响主流程
+      }
+
+      try {
+        const params = new URLSearchParams();
+        params.set('select', select);
+        params.set('order', 'created_at.desc');
+        params.set('limit', String(poolSize));
+        if (offset > 0) params.set('offset', String(offset));
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/gitxu_articles?${params.toString()}`, {
+          headers,
+          cache: 'no-store',
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data) && data.length > 0) return pick(data.map(mapRow));
+        }
+      } catch {
+        // 推荐模块查询失败不影响首页其它区块
       }
       return [];
     },
