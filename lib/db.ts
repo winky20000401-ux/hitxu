@@ -168,18 +168,44 @@ export const db = {
      *   保证区块永远填满。
      * - 失败静默返回空数组，不阻塞首页渲染。
      */
-    findRandom: async (opts: { limit?: number; seed?: number; poolSize?: number; excludeSlugs?: string[] } = {}): Promise<Article[]> => {
+    findRandom: async (opts: {
+      limit?: number;
+      seed?: number;
+      poolSize?: number;
+      excludeSlugs?: string[];
+      /** 按类型分层抽样，默认 news + guide 各占一半，避免池子里某类偏多时全是同一类 */
+      types?: string[];
+    } = {}): Promise<Article[]> => {
       const limit = Math.min(Math.max(opts.limit || 6, 1), 24);
       const poolSize = Math.min(Math.max(opts.poolSize || 300, limit), 1000);
+      const types = (opts.types && opts.types.length > 0 ? opts.types : ['news', 'guide']).slice(0, 4);
       const exclude = new Set((opts.excludeSlugs || []).filter(Boolean));
       const seed = Number.isFinite(opts.seed) ? Number(opts.seed) : Math.floor(Date.now() / 600000);
 
       const pick = (pool: Article[]): Article[] => {
-        const fresh = seededShuffle(pool.filter((a) => a.slug && !exclude.has(a.slug)), seed);
-        if (fresh.length >= limit) return fresh.slice(0, limit);
-        // 池子被排除项吃掉太多 → 用被排除的文章补齐，避免区块开天窗
-        const rest = seededShuffle(pool.filter((a) => a.slug && exclude.has(a.slug)), seed + 1);
-        return fresh.concat(rest).slice(0, limit);
+        const usable = pool.filter((a) => a.slug);
+        // 每个类型各洗一串（seed 错开），轮流取 → 类型均衡，且同窗口结果稳定
+        const groups = types
+          .map((t, i) => seededShuffle(usable.filter((a) => !exclude.has(a.slug) && (a.type || 'news') === t), seed + i * 7919))
+          .filter((g) => g.length > 0);
+
+        const out: Article[] = [];
+        if (groups.length > 0) {
+          while (out.length < limit && groups.some((g) => g.length > 0)) {
+            for (const g of groups) {
+              if (out.length >= limit) break;
+              if (g.length > 0) out.push(g.shift() as Article);
+            }
+          }
+        }
+        if (out.length < limit) {
+          // 分层不够 → 用剩余文章（含被排除的）补齐，避免区块开天窗
+          const taken = new Set(out.map((a) => a.slug));
+          const rest = seededShuffle(usable.filter((a) => !taken.has(a.slug)), seed + 104729);
+          out.push(...rest.slice(0, limit - out.length));
+        }
+        // 再洗一次，抹掉「news,guide,news,guide」的轮排痕迹
+        return seededShuffle(out, seed + 15485863).slice(0, limit);
       };
 
       // 本地无 Supabase 时只有 3 篇 seed，排除逻辑会让区块重复/为空 —— 直接洗牌即可
