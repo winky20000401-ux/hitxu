@@ -35,9 +35,10 @@ export default function RecommendedPicks({
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {articles.map((article) => (
+          // 文章详情页只有 /news/<slug> 一条路由（guide 也走这里），指向 /guides/<slug> 会 404
           <Link
             key={article.id}
-            href={article.type === 'guide' ? `/guides/${article.slug}` : `/news/${article.slug}`}
+            href={`/news/${article.slug}`}
             className="group bg-slate-900 border border-slate-800 rounded-xl overflow-hidden hover:border-emerald-500/50 transition-all duration-300 flex flex-col shadow-lg hover:-translate-y-1"
           >
             <div className="relative aspect-video w-full overflow-hidden bg-slate-800">
