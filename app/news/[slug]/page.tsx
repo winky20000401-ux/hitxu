@@ -5,6 +5,7 @@ import type { Metadata } from 'next';
 import type { Article } from '@/lib/data';
 import { topTitleTokens } from '@/lib/related';
 import { articleTopics } from '@/lib/topics';
+import { updatedTag } from '@/lib/dateTag';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -15,12 +16,14 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   const article = await db.articles.findUnique(params.slug);
   if (!article) return { title: 'Article Not Found | GitXu' };
   const description = (article.summary || article.title).slice(0, 160);
+  // 标题带当天日期（Asia/Shanghai），突出时效性；页面 force-dynamic，每天自动翻篇
+  const dated = `${article.title} - ${updatedTag()}`;
   return {
-    title: `${article.title} | GitXu`,
+    title: `${dated} | GitXu`,
     description,
     alternates: { canonical: `${SITE_URL}/news/${article.slug}` },
     openGraph: {
-      title: article.title,
+      title: dated,
       description,
       type: 'article',
       url: `${SITE_URL}/news/${article.slug}`,
@@ -153,6 +156,8 @@ export default async function ArticleDetailPage({ params }: { params: { slug: st
               </h1>
               <div className="text-xs text-slate-400 flex items-center space-x-4 pt-2 border-b border-slate-800 pb-4">
                 <span>Published: {article.publishedAt}</span>
+                <span>•</span>
+                <span className="text-emerald-400 font-semibold">{updatedTag()}</span>
                 <span>•</span>
                 <span>{article.views.toLocaleString()} Views</span>
               </div>
