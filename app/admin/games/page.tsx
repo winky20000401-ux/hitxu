@@ -142,7 +142,7 @@ export default function AdminGamesPage() {
 
       {/* Games List */}
       <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
-        <h2 className="text-base font-bold text-white mb-4">現有遊戲庫</h2>
+        <h2 className="text-base font-bold text-white mb-4">現有小遊戲列表</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
           {games.map((g) => (
             <div key={g.id} className="bg-slate-800/80 border border-slate-700/60 rounded-lg p-3 space-y-2">
@@ -150,6 +150,7 @@ export default function AdminGamesPage() {
               <div className="text-xs text-slate-400">分類：{g.category}</div>
               <div className="text-xs text-slate-400">總遊玩次數：{g.playCount}</div>
               <div className="text-xs text-slate-500 truncate">路徑：{g.gameUrl}</div>
+              <a href={`/games/${g.slug}`} target="_blank" rel="noopener noreferrer" className="inline-block text-xs text-emerald-400 hover:underline">預覽 ↗</a>
             </div>
           ))}
         </div>
