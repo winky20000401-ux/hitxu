@@ -173,9 +173,23 @@ export default async function ArticleDetailPage({ params }: { params: { slug: st
                   {article.summary}
                 </p>
               )}
-              {paragraphs.map((para, i) => (
-                <p key={i}>{para}</p>
-              ))}
+              {paragraphs.map((para, i) => {
+                const imgMatch = para.match(/^!\[([^\]]*)\]\((https?:\/\/[^\s)]+)\)$/);
+                if (imgMatch) {
+                  return (
+                    <figure key={i} className="my-4">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={imgMatch[2]}
+                        alt={imgMatch[1] || article.title}
+                        className="w-full rounded-xl border border-slate-800"
+                        loading="lazy"
+                      />
+                    </figure>
+                  );
+                }
+                return <p key={i}>{para}</p>;
+              })}
             </div>
           </div>
 
