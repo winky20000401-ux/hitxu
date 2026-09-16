@@ -59,7 +59,7 @@ export default function AdminLoginPage() {
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="請輸入帳號 (預設: admin)"
+              placeholder="請輸入管理員帳號"
               className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3.5 py-2.5 text-sm text-white focus:ring-2 focus:ring-emerald-500 outline-none transition"
               required
             />
@@ -71,7 +71,7 @@ export default function AdminLoginPage() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="請輸入密碼 (預設: admin888)"
+              placeholder="請輸入管理員密碼"
               className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3.5 py-2.5 text-sm text-white focus:ring-2 focus:ring-emerald-500 outline-none transition"
               required
             />

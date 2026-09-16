@@ -2,6 +2,11 @@
 
 import { useState, useEffect } from 'react';
 
+function csrfHeaders(): Record<string, string> {
+  const token = document.cookie.split('; ').find(value => value.startsWith('admin_csrf='))?.split('=').slice(1).join('=');
+  return token ? { 'X-CSRF-Token': decodeURIComponent(token) } : {};
+}
+
 export default function AdminGamesPage() {
   const [games, setGames] = useState<any[]>([]);
   const [title, setTitle] = useState('');
@@ -27,7 +32,7 @@ export default function AdminGamesPage() {
 
     const res = await fetch('/api/games', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
       body: JSON.stringify({ title, slug, description, category, gameUrl, coverImage }),
     });
 

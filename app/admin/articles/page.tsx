@@ -3,6 +3,11 @@
 import { useState, useEffect, useMemo } from 'react';
 import { DEFAULT_GAMING_COVERS } from '@/lib/images';
 
+function csrfHeaders(): Record<string, string> {
+  const token = document.cookie.split('; ').find(value => value.startsWith('admin_csrf='))?.split('=').slice(1).join('=');
+  return token ? { 'X-CSRF-Token': decodeURIComponent(token) } : {};
+}
+
 export default function AdminArticlesPage() {
   const [articles, setArticles] = useState<any[]>([]);
   const [title, setTitle] = useState('');
@@ -58,7 +63,7 @@ export default function AdminArticlesPage() {
 
     const res = await fetch(editingId ? `/api/articles/${editingId}` : '/api/articles', {
       method: editingId ? 'PATCH' : 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
       body: JSON.stringify({ title, slug, summary, content, type, category, coverImage }),
     });
 
@@ -100,7 +105,7 @@ export default function AdminArticlesPage() {
 
   const handleDelete = async (id: string) => {
     if (!confirm('確認刪除該文章？')) return;
-    await fetch(`/api/articles/${id}`, { method: 'DELETE' });
+    await fetch(`/api/articles/${id}`, { method: 'DELETE', headers: csrfHeaders() });
     fetchArticles();
   };
 

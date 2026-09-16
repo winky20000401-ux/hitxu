@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { resolveArticleCover } from '@/lib/images';
+import { isAuthorizedMutation } from '@/lib/admin-auth';
 
 export async function GET() {
   const articles = await db.articles.findMany();
@@ -8,6 +9,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  if (!isAuthorizedMutation(request)) return NextResponse.json({ success: false, message: '未授權請求' }, { status: 403 });
   try {
     const body = await request.json();
     const { title, slug, summary, content, type, category, coverImage } = body;

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { isAuthorizedMutation } from '@/lib/admin-auth';
 
 export async function GET() {
   const games = await db.games.findMany();
@@ -7,6 +8,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  if (!isAuthorizedMutation(request)) return NextResponse.json({ success: false, message: '未授權請求' }, { status: 403 });
   try {
     const body = await request.json();
     const { title, slug, description, category, coverImage, gameUrl, featured } = body;

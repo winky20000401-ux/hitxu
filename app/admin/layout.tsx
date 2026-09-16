@@ -3,6 +3,11 @@
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 
+function csrfHeaders(): Record<string, string> {
+  const token = document.cookie.split('; ').find(value => value.startsWith('admin_csrf='))?.split('=').slice(1).join('=');
+  return token ? { 'X-CSRF-Token': decodeURIComponent(token) } : {};
+}
+
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -13,7 +18,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const handleLogout = async () => {
     if (!confirm('確認登出管理員？')) return;
-    await fetch('/api/admin/logout', { method: 'POST' });
+    await fetch('/api/admin/logout', { method: 'POST', headers: csrfHeaders() });
     router.push('/admin/login');
     router.refresh();
   };
