@@ -110,7 +110,8 @@ export const db = {
             Range: '0-49999',
             Prefer: 'count=none',
           },
-          cache: 'no-store',
+          cache: 'force-cache',
+          next: { revalidate: 300 },
         });
         if (res.ok) {
           const data = await res.json();
@@ -149,7 +150,8 @@ export const db = {
             apikey: SUPABASE_KEY!,
             Authorization: `Bearer ${SUPABASE_KEY}`,
           },
-          cache: 'no-store',
+          cache: 'force-cache',
+          next: { revalidate: 300 },
         });
         if (res.ok) {
           const data = await res.json();
@@ -223,7 +225,8 @@ export const db = {
       try {
         const countRes = await fetch(`${SUPABASE_URL}/rest/v1/gitxu_articles?select=id&limit=1`, {
           headers: { ...headers, Prefer: 'count=estimated' },
-          cache: 'no-store',
+          cache: 'force-cache',
+          next: { revalidate: 300 },
         });
         const range = countRes.headers.get('content-range') || '';
         const matched = range.match(/\/(\d+)\s*$/);
@@ -243,7 +246,8 @@ export const db = {
         if (offset > 0) params.set('offset', String(offset));
         const res = await fetch(`${SUPABASE_URL}/rest/v1/gitxu_articles?${params.toString()}`, {
           headers,
-          cache: 'no-store',
+          cache: 'force-cache',
+          next: { revalidate: 300 },
         });
         if (res.ok) {
           const data = await res.json();
@@ -278,7 +282,8 @@ export const db = {
               apikey: SUPABASE_KEY!,
               Authorization: `Bearer ${SUPABASE_KEY}`,
             },
-            cache: 'no-store',
+            cache: 'force-cache',
+            next: { revalidate: 300 },
           });
           if (res.ok) {
             const data = await res.json();
@@ -311,7 +316,8 @@ export const db = {
               apikey: SUPABASE_KEY!,
               Authorization: `Bearer ${SUPABASE_KEY}`,
             },
-            cache: 'no-store',
+            cache: 'force-cache',
+            next: { revalidate: 300 },
           }
         );
         if (res.ok) {
