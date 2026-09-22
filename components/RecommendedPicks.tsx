@@ -17,7 +17,8 @@ export default function RecommendedPicks({
   return (
     <section aria-labelledby="recommended-picks-heading">
       <div className="flex items-center justify-between mb-6">
-        <div>
+        {/* 标题与副标题按需求隐藏（display:none，DOM 结构保留以便随时恢复） */}
+        <div className="hidden">
           <h2
             id="recommended-picks-heading"
             className="text-2xl font-bold text-white flex items-center gap-2"
