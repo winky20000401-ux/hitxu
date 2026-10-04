@@ -7,12 +7,14 @@ const securityHeaders = [
   {
     key: 'Content-Security-Policy',
     value:
-      "default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self' https://*.supabase.co; frame-src 'self'",
+      "default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self'; frame-src 'self'",
   },
 ];
 
 module.exports = {
   poweredByHeader: false,
+  // 自包含 server.js：PM2 直接跑，服务器上不必装整套 node_modules
+  output: 'standalone',
   async headers() {
     return [{ source: '/:path*', headers: securityHeaders }];
   },
