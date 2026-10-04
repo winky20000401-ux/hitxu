@@ -12,19 +12,20 @@ import { ARTICLES as SEED_ARTICLES, MINI_GAMES as SEED_GAMES, Article, MiniGame 
  *    2. 源码编译要 C++17 → g++ 4.8.5 不认 -std=gnu++17
  *  wasm 版零原生编译、零 glibc 依赖。同机 timiu.com 已跑通同一方案。
  *
- *  用 createRequire 加载，避开 Next 打包器对 wasm 资源的处理差异。
+ *  加载方式：直接 import，并在 next.config.js 里把该包标记为 external。
+ *  曾尝试 createRequire 动态加载，但 webpack 会把 createRequire 编译成
+ *  void 0，运行时报 "n is not a function"（同机 timiu.com 用 Turbopack 能跑，
+ *  本站 Next 14 用 webpack 跑不了）。改走 import + external 后正常。
  * -------------------------------------------------------------------------- */
 
 import path from 'node:path';
-import { createRequire } from 'node:module';
+import { Database as WasmDatabase } from 'node-sqlite3-wasm';
 
-const nodeRequire = createRequire(process.cwd() + '/package.json');
-
+// 签名对齐 node-sqlite3-wasm 的真实 API：第二个参数是「一个」绑定值数组，
+// 不是可变参数（写成 run(sql, a, b) 会静默绑定失败）。
 type SqliteDatabase = {
-  run: (sql: string, ...params: unknown[]) => void;
-  all: (sql: string, ...params: unknown[]) => any[];
-  get: (sql: string, ...params: unknown[]) => any;
-  exec?: (sql: string) => void;
+  run: (sql: string, values?: unknown[]) => unknown;
+  all: (sql: string, values?: unknown[]) => any[];
 };
 
 const DATA_DIR = process.env.DATA_DIR || path.join(process.cwd(), 'data');
@@ -38,10 +39,7 @@ function openDatabase(): SqliteDatabase | null {
   if (initAttempted) return sqlite;
   initAttempted = true;
   try {
-    const { Database: WasmDatabase } = nodeRequire('node-sqlite3-wasm') as {
-      Database: new (file: string) => SqliteDatabase;
-    };
-    const db = new WasmDatabase(DB_FILE);
+    const db = new WasmDatabase(DB_FILE) as SqliteDatabase;
     db.run('PRAGMA journal_mode = WAL;');
     db.run('PRAGMA busy_timeout = 5000;');
     db.run(`CREATE TABLE IF NOT EXISTS gitxu_articles (
@@ -146,7 +144,7 @@ function query(sql: string, params: unknown[] = []): any[] {
   const db = openDatabase();
   if (!db) return [];
   try {
-    return db.all(sql, ...params) || [];
+    return db.all(sql, params) || [];
   } catch (err: any) {
     initError = `SQLite query failed: ${err?.message || err}`;
     return [];
@@ -303,16 +301,18 @@ export const db = {
         db.run(
           `INSERT INTO gitxu_articles (id, slug, title, summary, content, type, category, cover_image, published_at, created_at, views)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
-          newArticle.id,
-          newArticle.slug,
-          newArticle.title,
-          newArticle.summary || '',
-          newArticle.content || '',
-          newArticle.type || 'news',
-          newArticle.category || 'General',
-          newArticle.coverImage || '',
-          now,
-          now
+          [
+            newArticle.id,
+            newArticle.slug,
+            newArticle.title,
+            newArticle.summary || '',
+            newArticle.content || '',
+            newArticle.type || 'news',
+            newArticle.category || 'General',
+            newArticle.coverImage || '',
+            now,
+            now,
+          ]
         );
       } catch (err: any) {
         // 并发下同 slug 抢跑 → 退回读取既有行，仍算成功（调用方只关心"这篇文章在线上存在"）
@@ -339,7 +339,7 @@ export const db = {
         throw new Error('No fields to update');
       }
       params.push(id);
-      db.run(`UPDATE gitxu_articles SET ${sets.join(', ')} WHERE id = ?`, ...params);
+      db.run(`UPDATE gitxu_articles SET ${sets.join(', ')} WHERE id = ?`, params);
       const row = query('SELECT * FROM gitxu_articles WHERE id = ? LIMIT 1', [id])[0];
       return row
         ? mapRow(row)
@@ -350,7 +350,7 @@ export const db = {
       if (!db) {
         throw new Error(`SQLite is NOT available (${initError || 'not initialized'}) — article was NOT deleted.`);
       }
-      db.run('DELETE FROM gitxu_articles WHERE id = ?', id);
+      db.run('DELETE FROM gitxu_articles WHERE id = ?', [id]);
       return true;
     }
   },
