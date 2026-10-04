@@ -2,11 +2,12 @@ import type { MetadataRoute } from 'next';
 import { db } from '@/lib/db';
 import { activeTopics } from '@/lib/topics';
 
-// sitemap 不再 force-dynamic：改为 1 小时 ISR。
-// 旧写法（force-dynamic + revalidate=0）意味着**每一次被爬取都全量拉一遍文章**，
-// 是 Supabase 出站流量被烧穿的主因之一（2026-09-23 / 10-05 两次 egress 超限）。
-// 新文章最迟 1 小时进 sitemap，对收录节奏无实质影响。
-export const revalidate = 3600;
+// sitemap 走 5 分钟 ISR，不走 force-dynamic。
+// 历史：Supabase 时代每次被爬取都全量拉文章，是 egress 被烧穿的主因之一
+//（2026-09-23 / 10-05 两次超限），当时只能靠拉长 revalidate 续命。
+// 现在数据在**本机 SQLite**，读取不再有任何配额成本，全表扫描是毫秒级，
+// 因此把 3600 收回 300 —— 新文章 5 分钟内进 sitemap，对收录更友好。
+export const revalidate = 300;
 
 const BASE = 'https://www.gitxu.com';
 
