@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 };
 
 export default async function TopicsIndexPage() {
-  const articles = await db.articles.findMany();
+  const articles = await db.articles.findList();
   const topics = activeTopics(articles);
 
   return (

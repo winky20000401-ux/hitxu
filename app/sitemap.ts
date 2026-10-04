@@ -2,10 +2,11 @@ import type { MetadataRoute } from 'next';
 import { db } from '@/lib/db';
 import { activeTopics } from '@/lib/topics';
 
-// 动态 sitemap：每次请求实时从 Supabase 拉全量文章，
-// 新文章发布后无需重新部署即可出现在 sitemap 中
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+// sitemap 不再 force-dynamic：改为 1 小时 ISR。
+// 旧写法（force-dynamic + revalidate=0）意味着**每一次被爬取都全量拉一遍文章**，
+// 是 Supabase 出站流量被烧穿的主因之一（2026-09-23 / 10-05 两次 egress 超限）。
+// 新文章最迟 1 小时进 sitemap，对收录节奏无实质影响。
+export const revalidate = 3600;
 
 const BASE = 'https://www.gitxu.com';
 
@@ -26,9 +27,10 @@ function latestISO(articles: { publishedAtISO?: string }[]): string | undefined 
 }
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  let articles: Awaited<ReturnType<typeof db.articles.findMany>> = [];
+  // 只要 slug/标题/分类/时间做 URL 与 lastmod，正文一律不拉
+  let articles: Awaited<ReturnType<typeof db.articles.findList>> = [];
   try {
-    articles = await db.articles.findMany();
+    articles = await db.articles.findList();
   } catch {
     // Supabase 不可用时至少返回静态路由，避免 sitemap 整体 500
   }

@@ -12,7 +12,7 @@ export const PAGE_SIZE = 24;
  * 解决此前 /news 一页倾泻全量千篇文章（3.6MB HTML）的问题。
  */
 export default async function ArticleListPage({ kind, page }: { kind: 'news' | 'guide'; page: number }) {
-  const articles = await db.articles.findMany();
+  const articles = await db.articles.findList();
   const list = articles.filter((a: Article) => a.type === kind);
   const totalPages = Math.max(1, Math.ceil(list.length / PAGE_SIZE));
   // 越界页（/news/page/999）返回 404，避免渲染成与末页相同的软重复内容

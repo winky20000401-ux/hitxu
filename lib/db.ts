@@ -94,21 +94,88 @@ function mapRow(item: any): Article {
   };
 }
 
+/**
+ * 列表类查询统一入口，select 决定拉哪些列 —— 这是本站 Supabase egress 的总闸。
+ * - '*' 含 content 正文：1000 篇合计约 2.5 MB，**只有真要渲染正文或后台编辑才用**。
+ * - LIGHT_FIELDS 不含 content：体积约 1/20，列表页 / sitemap / 主题聚合页一律用它。
+ * 免费额度按出站流量计费，content 是第一大头（2026-09-23 与 10-05 两次 egress 超限都源于此）。
+ */
+const LIGHT_FIELDS = 'id,slug,title,summary,category,type,cover_image,published_at,views';
+
+async function fetchArticles(select: string): Promise<Article[]> {
+  if (!supabaseConfigured) {
+    lastStorageInfo = { source: 'seed', error: notConfiguredError() };
+    return SEED_ARTICLES;
+  }
+  try {
+    // PostgREST 默认单次最多返回 1000 行，Range 头放宽到 5 万，避免文章过千后被截断
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/gitxu_articles?select=${select}&order=created_at.desc`, {
+      headers: {
+        apikey: SUPABASE_KEY!,
+        Authorization: `Bearer ${SUPABASE_KEY}`,
+        Range: '0-49999',
+        Prefer: 'count=none',
+      },
+      cache: 'force-cache',
+      next: { revalidate: 300 },
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        lastStorageInfo = { source: 'supabase' };
+        // 配置了 Supabase 后即使空表/异常也不回落 seed 假文章，
+        // 避免占位内容混进 sitemap / 列表页被 Google 抓取
+        return data.map(mapRow);
+      }
+    }
+    const errText = await res.text().catch(() => '');
+    lastStorageInfo = { source: 'seed', error: `Supabase read failed: ${res.status} ${errText.slice(0, 200)}` };
+  } catch (err: any) {
+    lastStorageInfo = { source: 'seed', error: `Supabase read error: ${err?.message || err}` };
+  }
+  // 读取失败时返回空列表（而非 seed 假文章）——空列表只是暂缺内容，假文章会被 Google 收录成垃圾页
+  return [];
+}
+
 export const db = {
   articles: {
-    findMany: async (): Promise<Article[]> => {
-      if (!supabaseConfigured) {
-        lastStorageInfo = { source: 'seed', error: notConfiguredError() };
-        return SEED_ARTICLES;
-      }
+    /** 全量含正文。仅用于真正需要 content 的场景（后台编辑、公开 API）。 */
+    findMany: async (): Promise<Article[]> => fetchArticles('*'),
+    /** 全量但不含正文。列表页 / sitemap / 主题聚合页专用，egress 约为 findMany 的 1/20。 */
+    findList: async (): Promise<Article[]> => fetchArticles(LIGHT_FIELDS),
+    /**
+     * 只取总数：select=id&limit=1 + count=estimated，响应体 1 行，
+     * 总数从 Content-Range 解析 —— 替代「拉全量再 .length」的旧写法。
+     */
+    countAll: async (): Promise<number> => {
+      if (!supabaseConfigured) return SEED_ARTICLES.length;
       try {
-        // PostgREST 默认单次最多返回 1000 行，Range 头放宽到 5 万，避免文章过千后被截断
-        const res = await fetch(`${SUPABASE_URL}/rest/v1/gitxu_articles?select=*&order=created_at.desc`, {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/gitxu_articles?select=id&limit=1`, {
+          headers: {
+            apikey: SUPABASE_KEY!,
+            Authorization: `Bearer ${SUPABASE_KEY}`,
+            Prefer: 'count=estimated',
+          },
+          cache: 'force-cache',
+          next: { revalidate: 300 },
+        });
+        const range = res.headers.get('content-range') || '';
+        const matched = range.match(/\/(\d+)\s*$/);
+        if (matched) return Number(matched[1]);
+      } catch {
+        // 统计失败不阻塞页面渲染
+      }
+      return 0;
+    },
+    /** views 求和：只拉 views 一列（1000 行约 8 KB），不牵连正文。 */
+    viewsSum: async (): Promise<number> => {
+      if (!supabaseConfigured) return SEED_ARTICLES.reduce((acc, a) => acc + a.views, 0);
+      try {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/gitxu_articles?select=views`, {
           headers: {
             apikey: SUPABASE_KEY!,
             Authorization: `Bearer ${SUPABASE_KEY}`,
             Range: '0-49999',
-            Prefer: 'count=none',
           },
           cache: 'force-cache',
           next: { revalidate: 300 },
@@ -116,19 +183,13 @@ export const db = {
         if (res.ok) {
           const data = await res.json();
           if (Array.isArray(data)) {
-            lastStorageInfo = { source: 'supabase' };
-            // 配置了 Supabase 后即使空表/异常也不回落 seed 假文章，
-            // 避免占位内容混进 sitemap / 列表页被 Google 抓取
-            return data.map(mapRow);
+            return data.reduce((acc: number, row: any) => acc + (Number(row?.views) || 0), 0);
           }
         }
-        const errText = await res.text().catch(() => '');
-        lastStorageInfo = { source: 'seed', error: `Supabase read failed: ${res.status} ${errText.slice(0, 200)}` };
-      } catch (err: any) {
-        lastStorageInfo = { source: 'seed', error: `Supabase read error: ${err?.message || err}` };
+      } catch {
+        // 统计失败不阻塞页面渲染
       }
-      // 读取失败时返回空列表（而非 seed 假文章）——空列表只是暂缺内容，假文章会被 Google 收录成垃圾页
-      return [];
+      return 0;
     },
     findRecent: async (opts: { excludeSlug?: string; type?: string; limit?: number }): Promise<Article[]> => {
       // 内链网络专用小查询：最新/相关文章，带索引条件 + limit，不拉全量
@@ -141,7 +202,7 @@ export const db = {
       const params = new URLSearchParams();
       if (opts.type) params.set('type', `eq.${opts.type}`);
       if (opts.excludeSlug) params.set('slug', `neq.${opts.excludeSlug}`);
-      params.set('select', '*');
+      params.set('select', LIGHT_FIELDS);
       params.set('order', 'created_at.desc');
       params.set('limit', String(limit));
       try {
@@ -272,7 +333,7 @@ export const db = {
         if (out.length >= limit) break;
         const params = new URLSearchParams();
         params.set('title', `ilike.*${token}*`);
-        params.set('select', '*');
+        params.set('select', LIGHT_FIELDS);
         params.set('order', 'created_at.desc');
         params.set('limit', String(limit));
         if (opts.excludeSlug) params.set('slug', `neq.${opts.excludeSlug}`);
@@ -432,12 +493,17 @@ export const db = {
   },
   stats: {
     getOverview: async () => {
-      const articles = await db.articles.findMany();
+      // 旧实现调 findMany() 拉全量含正文（约 2.5 MB）只为取两个数字，
+      // /api/stats 每次被访问都是一次全量下载 —— 已改为两个轻量查询。
+      const [totalArticles, totalViews] = await Promise.all([
+        db.articles.countAll(),
+        db.articles.viewsSum(),
+      ]);
       return {
-        totalArticles: articles.length,
+        totalArticles,
         totalGames: SEED_GAMES.length,
         totalPlays: SEED_GAMES.reduce((acc, g) => acc + g.playCount, 0),
-        totalViews: articles.reduce((acc, a) => acc + a.views, 0)
+        totalViews
       };
     }
   }

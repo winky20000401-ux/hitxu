@@ -24,7 +24,7 @@ export default async function TopicPage({ params }: Params) {
   const topic = TOPICS.find((t) => t.slug === params.game);
   if (!topic) notFound();
 
-  const articles = await db.articles.findMany();
+  const articles = await db.articles.findList();
   // 与 activeTopics 保持同一阈值：不足 5 篇的主题不提供可索引页面
   const active = activeTopics(articles).find((t) => t.topic.slug === topic.slug);
   if (!active) notFound();
