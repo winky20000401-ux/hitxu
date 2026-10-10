@@ -32,7 +32,8 @@ export function middleware(request: NextRequest) {
   if (pathname.startsWith('/admin') && pathname !== '/admin/login') {
     const adminToken = request.cookies.get('admin_session')?.value;
     if (adminToken !== 'authenticated_admin') {
-      const loginUrl = new URL('/admin/login', request.url);
+      // Reverse-proxy requests may expose the upstream origin (https://localhost:3002).
+      const loginUrl = new URL('/admin/login', CANONICAL_ORIGIN);
       loginUrl.searchParams.set('from', pathname);
       return NextResponse.redirect(loginUrl);
     }
